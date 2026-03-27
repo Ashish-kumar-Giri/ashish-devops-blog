@@ -23,34 +23,32 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform Init (with backend)
+      - name: Terraform Init
         working-directory: terraform
         run: terraform init -reconfigure
 
-      - name: Terraform Apply (force state sync)
+      - name: Terraform Apply
         working-directory: terraform
-        run: terraform apply -auto-approve -refresh=true
+        run: terraform apply -auto-approve
 
-      - name: Debug Terraform State
-        working-directory: terraform
-        run: |
-          echo "=== STATE ==="
-          terraform state list || true
-          echo "=== OUTPUT ==="
-          terraform output || true
-
-      - name: Get Bucket Name (FINAL CLEAN)
+      # ✅ FINAL FIX HERE
+      - name: Get Bucket Name
         id: tf_output
         working-directory: terraform
+        shell: bash
         run: |
-          BUCKET=$(terraform output -raw bucket_name)
+          RAW=$(terraform output -raw bucket_name)
 
-          if [ -z "$BUCKET" ]; then
-            echo "❌ bucket_name output is empty"
+          # Remove GitHub debug pollution safely
+          CLEAN=$(echo "$RAW" | sed 's/::.*//')
+
+          if [ -z "$CLEAN" ]; then
+            echo "❌ Failed to get bucket"
+            echo "RAW: $RAW"
             exit 1
           fi
 
-          echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
+          echo "bucket=$CLEAN" >> $GITHUB_OUTPUT
 
       - name: Install Hugo
         run: |
