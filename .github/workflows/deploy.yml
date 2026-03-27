@@ -31,25 +31,6 @@ jobs:
         working-directory: terraform
         run: terraform apply -auto-approve
 
-      # ✅ FINAL FIX HERE
-      - name: Get Bucket Name
-        id: tf_output
-        working-directory: terraform
-        shell: bash
-        run: |
-          RAW=$(terraform output -raw bucket_name)
-
-          # Remove GitHub debug pollution safely
-          CLEAN=$(echo "$RAW" | sed 's/::.*//')
-
-          if [ -z "$CLEAN" ]; then
-            echo "❌ Failed to get bucket"
-            echo "RAW: $RAW"
-            exit 1
-          fi
-
-          echo "bucket=$CLEAN" >> $GITHUB_OUTPUT
-
       - name: Install Hugo
         run: |
           HUGO_VERSION=0.150.0
@@ -60,11 +41,16 @@ jobs:
       - name: Build Website
         run: hugo
 
-      - name: Deploy to S3
+      # ✅ FINAL FIX: directly use terraform output here
+      - name: Deploy to S3 (NO OUTPUT PASSING)
+        working-directory: terraform
         run: |
-          aws s3 sync public/ s3://${{ steps.tf_output.outputs.bucket }} --delete
+          BUCKET=$(terraform output -raw bucket_name)
+          echo "Deploying to $BUCKET"
+          aws s3 sync ../public/ s3://$BUCKET --delete
 
       - name: Invalidate CloudFront
+        working-directory: terraform
         run: |
           aws cloudfront create-invalidation \
           --distribution-id E3A67Y0CHJ9DB \
