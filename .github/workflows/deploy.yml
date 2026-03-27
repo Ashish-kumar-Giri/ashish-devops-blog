@@ -31,21 +31,33 @@ jobs:
         working-directory: terraform
         run: terraform init
 
-      # 5️⃣ Terraform Apply
+      # 5️⃣ Terraform Apply (with debug)
       - name: Terraform Apply
         working-directory: terraform
-        run: terraform apply -auto-approve
+        run: |
+          terraform apply -auto-approve
+          echo "=== Terraform Outputs ==="
+          terraform output || true
 
-      # 6️⃣ Get Bucket Name (CLEAN & SAFE)
+      # 6️⃣ Get Bucket Name (SAFE + DEBUG)
       - name: Get Bucket Name
         id: tf_output
         working-directory: terraform
         shell: bash
         run: |
-          BUCKET=$(terraform output -raw bucket_name 2>/dev/null | head -n 1 | tr -d '\n')
+          BUCKET=$(terraform output -raw bucket_name 2>/dev/null || echo "")
+          
+          if [ -z "$BUCKET" ]; then
+            echo "❌ Bucket output not found"
+            echo "Available outputs:"
+            terraform output || true
+            exit 1
+          fi
+          
+          echo "✅ Bucket found: $BUCKET"
           echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Install Hugo (latest compatible)
+      # 7️⃣ Install Hugo
       - name: Install Hugo
         run: |
           HUGO_VERSION=0.150.0
@@ -57,10 +69,10 @@ jobs:
       - name: Build Website
         run: hugo
 
-      # 9️⃣ Deploy to S3 (DYNAMIC)
+      # 9️⃣ Deploy to S3
       - name: Deploy to S3
         run: |
-          echo "Deploying to bucket: ${{ steps.tf_output.outputs.bucket }}"
+          echo "🚀 Deploying to bucket: ${{ steps.tf_output.outputs.bucket }}"
           aws s3 sync public/ s3://${{ steps.tf_output.outputs.bucket }} --delete
 
       # 🔟 Invalidate CloudFront
@@ -69,3 +81,7 @@ jobs:
           aws cloudfront create-invalidation \
           --distribution-id E3A67Y0CHJ9DB \
           --paths "/*"
+
+
+
+
