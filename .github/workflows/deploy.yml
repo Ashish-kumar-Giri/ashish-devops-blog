@@ -1,4 +1,4 @@
-name: Deploy Blog with Terraform
+name: Deploy Blog
 
 on:
   push:
@@ -10,11 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout Code
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # 2️⃣ Configure AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -22,41 +20,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      # 3️⃣ Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      # 4️⃣ Terraform Init
       - name: Terraform Init
         working-directory: terraform
         run: terraform init
 
-      # 5️⃣ Terraform Apply
       - name: Terraform Apply
         working-directory: terraform
         run: terraform apply -auto-approve
 
-      # 6️⃣ Get Bucket Name (FINAL FIX - JSON SAFE)
       - name: Get Bucket Name
         id: tf_output
         working-directory: terraform
         run: |
-          terraform output -json > tf_output.json
-          BUCKET=$(cat tf_output.json | jq -r '.bucket_name.value')
-
-          if [ -z "$BUCKET" ] || [ "$BUCKET" = "null" ]; then
-            echo "❌ Failed to get bucket name"
-            cat tf_output.json
-            exit 1
-          fi
-
+          BUCKET=$(terraform output -raw bucket_name)
           echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Install jq (needed for JSON parsing)
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      # 8️⃣ Install Hugo
       - name: Install Hugo
         run: |
           HUGO_VERSION=0.150.0
@@ -64,17 +45,13 @@ jobs:
           tar -xzf hugo_extended_${HUGO_VERSION}_Linux-64bit.tar.gz
           sudo mv hugo /usr/local/bin/
 
-      # 9️⃣ Build Website
       - name: Build Website
         run: hugo
 
-      # 🔟 Deploy to S3
       - name: Deploy to S3
         run: |
-          echo "🚀 Deploying to: ${{ steps.tf_output.outputs.bucket }}"
           aws s3 sync public/ s3://${{ steps.tf_output.outputs.bucket }} --delete
 
-      # 1️⃣1️⃣ Invalidate CloudFront
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
