@@ -34,32 +34,29 @@ jobs:
       # 5️⃣ Terraform Apply
       - name: Terraform Apply
         working-directory: terraform
-        run: |
-          terraform apply -auto-approve
-          echo "=== Terraform Outputs ==="
-          terraform output || true
+        run: terraform apply -auto-approve
 
-      # 6️⃣ Get Bucket Name (FINAL FIX)
+      # 6️⃣ Get Bucket Name (FINAL FIX - JSON SAFE)
       - name: Get Bucket Name
         id: tf_output
         working-directory: terraform
-        shell: bash
         run: |
-          RAW_OUTPUT=$(terraform output -raw bucket_name 2>/dev/null)
+          terraform output -json > tf_output.json
+          BUCKET=$(cat tf_output.json | jq -r '.bucket_name.value')
 
-          # Clean debug noise (anything after ::)
-          BUCKET=$(echo "$RAW_OUTPUT" | cut -d':' -f1 | tr -d '\n')
-
-          if [ -z "$BUCKET" ]; then
-            echo "❌ Failed to extract bucket name"
-            echo "Raw output: $RAW_OUTPUT"
+          if [ -z "$BUCKET" ] || [ "$BUCKET" = "null" ]; then
+            echo "❌ Failed to get bucket name"
+            cat tf_output.json
             exit 1
           fi
 
-          echo "✅ Bucket: $BUCKET"
           echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Install Hugo
+      # 7️⃣ Install jq (needed for JSON parsing)
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # 8️⃣ Install Hugo
       - name: Install Hugo
         run: |
           HUGO_VERSION=0.150.0
@@ -67,17 +64,17 @@ jobs:
           tar -xzf hugo_extended_${HUGO_VERSION}_Linux-64bit.tar.gz
           sudo mv hugo /usr/local/bin/
 
-      # 8️⃣ Build Website
+      # 9️⃣ Build Website
       - name: Build Website
         run: hugo
 
-      # 9️⃣ Deploy to S3
+      # 🔟 Deploy to S3
       - name: Deploy to S3
         run: |
           echo "🚀 Deploying to: ${{ steps.tf_output.outputs.bucket }}"
           aws s3 sync public/ s3://${{ steps.tf_output.outputs.bucket }} --delete
 
-      # 🔟 Invalidate CloudFront
+      # 1️⃣1️⃣ Invalidate CloudFront
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
