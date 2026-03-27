@@ -36,15 +36,16 @@ jobs:
         working-directory: terraform
         run: terraform apply -auto-approve
 
-      # 6️⃣ Get Bucket Name (FIXED)
+      # 6️⃣ Get Bucket Name (CLEAN & SAFE)
       - name: Get Bucket Name
         id: tf_output
         working-directory: terraform
+        shell: bash
         run: |
-          BUCKET=$(terraform output -raw bucket_name | tr -d '\n')
+          BUCKET=$(terraform output -raw bucket_name 2>/dev/null | head -n 1 | tr -d '\n')
           echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Install Hugo
+      # 7️⃣ Install Hugo (latest compatible)
       - name: Install Hugo
         run: |
           HUGO_VERSION=0.150.0
@@ -56,9 +57,10 @@ jobs:
       - name: Build Website
         run: hugo
 
-      # 9️⃣ Deploy to S3 (dynamic bucket)
+      # 9️⃣ Deploy to S3 (DYNAMIC)
       - name: Deploy to S3
         run: |
+          echo "Deploying to bucket: ${{ steps.tf_output.outputs.bucket }}"
           aws s3 sync public/ s3://${{ steps.tf_output.outputs.bucket }} --delete
 
       # 🔟 Invalidate CloudFront
