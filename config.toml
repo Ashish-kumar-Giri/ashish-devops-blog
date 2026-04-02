@@ -1,3 +1,10 @@
 theme = "PaperMod"
-baseURL = "https://dl3vsxhqcuu7.cloudfront.net"
+baseURL = "https://d1i59hjyx64k6h.cloudfront.net"
 title = "Ashish DevOps Blog"
+
+[params]
+  ShowReadingTime = true
+  ShowShareButtons = true
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
