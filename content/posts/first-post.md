@@ -28,5 +28,6 @@ i am still trying on new ways to work toward it .
 its 4:25 inthe morning faced a lot of error while deploying
 made changes in config file 
 
+i wanna check my changes
 
-want to check my new changes made under assistance of aryan .
+adeed caching for hugo such thaat everytime it won't be instlled 
