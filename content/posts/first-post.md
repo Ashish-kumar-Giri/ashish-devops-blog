@@ -27,3 +27,6 @@ i am still trying on new ways to work toward it .
 
 its 4:25 inthe morning faced a lot of error while deploying
 made changes in config file 
+
+
+want to check my new changes made under assistance of aryan .
